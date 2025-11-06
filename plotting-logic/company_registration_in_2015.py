@@ -39,7 +39,6 @@ def count_registrations_by_district(companies_file):
 
 def plot_registrations_by_district(district_counts):
     """Plot a horizontal bar chart of number of registrations by district, top N only."""
-    # Sort districts by count
     sorted_districts = sorted(district_counts.items(), key=lambda x: x[1], reverse=True)
     top_districts = dict(sorted_districts[:TOP_N_DISTRICTS])
     other_count = sum(count for _, count in sorted_districts[TOP_N_DISTRICTS:])
@@ -50,7 +49,7 @@ def plot_registrations_by_district(district_counts):
     counts = list(top_districts.values())
 
     plt.figure(figsize=(12, 8))
-    plt.barh(districts[::-1], counts[::-1], color='purple', edgecolor='black')  # reverse for descending
+    plt.barh(districts[::-1], counts[::-1], color='purple', edgecolor='black') 
     plt.xlabel('Number of Companies')
     plt.ylabel('District')
     plt.title(f'Company Registrations in {YEAR_OF_INTEREST} by District (Top {TOP_N_DISTRICTS})')
