@@ -25,11 +25,7 @@ def load_and_categorize_capitals(companies_file):
     with open(companies_file, 'r', encoding='utf-8') as f:
         reader = csv.DictReader(f)
         for company in reader:
-            try:
-                cap = float(company[AUTHORIZED_CAPITAL])
-            except (ValueError, TypeError):
-                continue  # skip invalid/missing values
-
+            cap = float(company[AUTHORIZED_CAPITAL])
             if cap <= 1_00_000:
                 categories["<= 1L"] += 1
             elif cap <= 10_00_000:

@@ -1,67 +1,120 @@
 """
-Optimized script to calculate and plot company registrations in 2015 by district.
-Shows top districts and combines smaller ones into 'Other'.
+Company Registrations Analysis (2015)
+
+This script:
+- Loads company registration data from CSV
+- Uses a strict ZIP-to-district mapping file
+- Counts registrations by district for the year 2015
+- Plots a bar chart of top districts (only districts found in the ZIP mapping)
 """
 
 import csv
+import re
+from collections import Counter
 import matplotlib.pyplot as plt
 
+# === Constants ===
 REGISTRATION_DATE = 'CompanyRegistrationdate_date'
 ADDRESS = 'Registered_Office_Address'
-YEAR_OF_INTEREST = 2015
-TOP_N_DISTRICTS = 15  
+YEAR_OF_INTEREST = '2015'
+TOP_N_DISTRICTS = 15
 
-def count_registrations_by_district(companies_file):
-    """Count number of companies registered in 2015 per district extracted from address."""
-    district_counts = {}
+ZIPCODE_FILE = '../data/zipcode.csv'
+COMPANIES_FILE = '../data/calculation.csv'
 
-    with open(companies_file, 'r', encoding='utf-8') as f:
-        reader = csv.DictReader(f)
-        for company in reader:
-            try:
-                year = int(company[REGISTRATION_DATE].split('-')[0])
-            except (ValueError, KeyError):
-                continue
 
-            if year != YEAR_OF_INTEREST:
-                continue
+# === Core Calculation ===
+def calculate(company_data, zipcode_data, year=YEAR_OF_INTEREST):
+    """
+    Count company registrations per district based on ZIP code.
+    Only counts registrations if ZIP code is found in the mapping.
+    """
+    # Step 1: Map ZIP codes → Districts
+    zip_to_district = {
+        row["ZipCode"].replace(" ", ""): row["District"].strip()
+        for row in zipcode_data
+        if row.get("ZipCode") and row.get("District")
+    }
 
-            address = company[ADDRESS].strip()
-            parts = address.replace(',', ' ').split()
-            if not parts:
-                district = 'Unknown'
-            else:
-                district = parts[-2] if parts[-1].isdigit() and len(parts[-1]) == 6 else parts[-1]
+    district_counts = Counter()
 
-            district_counts[district] = district_counts.get(district, 0) + 1
+    for company in company_data:
+        registration_date = company.get(REGISTRATION_DATE, "")
+        address = company.get(ADDRESS, "")
+
+        # Only consider companies registered in the given year
+        if not registration_date.startswith(year):
+            continue
+
+        # Extract 6 or 7-digit ZIP codes anywhere in the address
+        zip_codes = re.findall(r"\b\d{6,7}\b", address)
+
+        for zip_code in zip_codes:
+            zip_clean = zip_code.replace(" ", "")
+            if zip_clean in zip_to_district:
+                district_counts[zip_to_district[zip_clean]] += 1
+                break  # Count only one ZIP per company
 
     return district_counts
 
-def plot_registrations_by_district(district_counts):
-    """Plot a horizontal bar chart of number of registrations by district, top N only."""
-    sorted_districts = sorted(district_counts.items(), key=lambda x: x[1], reverse=True)
-    top_districts = dict(sorted_districts[:TOP_N_DISTRICTS])
-    other_count = sum(count for _, count in sorted_districts[TOP_N_DISTRICTS:])
-    if other_count > 0:
-        top_districts['Other'] = other_count
 
+# === Data Loading ===
+def load_csv_as_dicts(csv_file):
+    """Load CSV into a list of dictionaries using DictReader."""
+    with open(csv_file, 'r', encoding='utf-8') as f:
+        return list(csv.DictReader(f))
+
+
+# === Plotting ===
+def plot_registrations_by_district(district_counts, top_n=TOP_N_DISTRICTS):
+    """
+    Plot a horizontal bar chart of number of registrations by district.
+    Shows only top N districts for readability.
+    """
+    if not district_counts:
+        print("No registrations found for the given year and ZIPs.")
+        return
+
+    sorted_districts = sorted(
+        district_counts.items(), key=lambda x: x[1], reverse=True
+    )
+
+    top_districts = dict(sorted_districts[:top_n])
     districts = list(top_districts.keys())
     counts = list(top_districts.values())
 
-    plt.figure(figsize=(12, 8))
-    plt.barh(districts[::-1], counts[::-1], color='purple', edgecolor='black') 
-    plt.xlabel('Number of Companies')
+    plt.figure(figsize=(10, 6))
+    bars = plt.barh(districts[::-1], counts[::-1],
+                    color='#4C72B0', edgecolor='black')
+    plt.xlabel('Number of Registrations')
     plt.ylabel('District')
-    plt.title(f'Company Registrations in {YEAR_OF_INTEREST} by District (Top {TOP_N_DISTRICTS})')
+    plt.title(f'Company Registrations in {YEAR_OF_INTEREST} by District (Top {top_n})')
+
+    # Add numeric labels on bars
+    for bar in bars:
+        width = bar.get_width()
+        plt.text(width + 0.5, bar.get_y() + bar.get_height() / 2,
+                 f'{int(width)}', va='center')
+
     plt.tight_layout()
     plt.savefig('../plotting-images/registrations-2015-by-district.png')
     plt.show()
 
-def execute(companies_file):
-    district_counts = count_registrations_by_district(companies_file)
-    plot_registrations_by_district(district_counts)
+
+# === Executor ===
+def execute():
+    """Main function to load data, calculate counts, and plot."""
+    zipcode_data = load_csv_as_dicts(ZIPCODE_FILE)
+    company_data = load_csv_as_dicts(COMPANIES_FILE)
+
+    district_counts = calculate(company_data, zipcode_data, year=YEAR_OF_INTEREST)
+    print("District counts:", district_counts)  # Debug print to confirm results
+    plot_registrations_by_district(district_counts, top_n=TOP_N_DISTRICTS)
+
 
 if __name__ == "__main__":
-    COMPANIES_PATH = '../data/calculation.csv'
-    execute(COMPANIES_PATH)
+    execute()
+
+
+
 

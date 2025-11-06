@@ -78,3 +78,5 @@ def execute(companies_file):
 if __name__ == "__main__":
     COMPANIES_PATH = '../data/calculation.csv'
     execute(COMPANIES_PATH)
+
+
